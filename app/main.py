@@ -1,7 +1,9 @@
 import socket  # noqa: F401
 import threading
+import time
 
-GLOBAL_DICT = {}
+GLOBAL_STORE = {}
+GLOBAL_STORE_EXPIRY = {}
 
 lock = threading.Lock()
 
@@ -26,10 +28,18 @@ def parse_command(data: bytes):
             idx += 1
         return elements
     except ValueError:
-        return []        
+        return []
+
+def clean_expired_keys():
+    now = time.time() * 1000  # current time in milliseconds
+    expired_keys = [key for key, expiry in GLOBAL_STORE_EXPIRY.items() if expiry <= now]
+    for key in expired_keys:
+        with lock:
+            GLOBAL_STORE.pop(key, None)
+            GLOBAL_STORE_EXPIRY.pop(key, None)     
     
 def handle_command(parts):
-    global GLOBAL_DICT
+    global GLOBAL_STORE
     if not parts:
         return b""
     
@@ -41,13 +51,25 @@ def handle_command(parts):
         return f"${len(arg)}\r\n{arg}\r\n".encode()
     elif command == "SET" and len(parts) >= 3:
         key, value = parts[1], parts[2]
+        expiry_time = None
+        if len(parts) == 5 and parts[3].upper() == "PX":
+            try:
+                time_in_ms = int(parts[4])
+                expiry_time = time.time() * 1000 + time_in_ms  # current time in ms + expiry
+            except ValueError:
+                pass
         with lock:
-            GLOBAL_DICT[key] = value
+            GLOBAL_STORE[key] = value
+            if expiry_time:
+                GLOBAL_STORE_EXPIRY[key] = expiry_time
+            elif key in GLOBAL_STORE_EXPIRY:
+                GLOBAL_STORE_EXPIRY.pop(key, None)
         return b"+OK\r\n"
     elif command == "GET" and len(parts) > 1:
         key = parts[1]
         with lock:
-            value = GLOBAL_DICT.get(key)
+            clean_expired_keys()
+            value = GLOBAL_STORE.get(key)
         if value is None:
             return b"$-1\r\n"
         else:
