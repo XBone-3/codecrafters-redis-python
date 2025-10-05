@@ -27,7 +27,7 @@ def main():
             connection, _ = server_socket.accept() # wait for client
 
             # implementing threading to handle multiple clients simultaneously
-            thread = threading.Thread(target=handle_connection, args=(connection))
+            thread = threading.Thread(target=handle_connection, args=(connection,))
             thread.daemon = True
             thread.start()
     except KeyboardInterrupt:
