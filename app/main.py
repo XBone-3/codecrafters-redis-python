@@ -1,6 +1,10 @@
 import socket  # noqa: F401
 import threading
 
+GLOBAL_DICT = {}
+
+lock = threading.Lock()
+
 def parse_command(data: bytes):
     """
     Parse a RESP array like:
@@ -25,6 +29,7 @@ def parse_command(data: bytes):
         return []        
     
 def handle_command(parts):
+    global GLOBAL_DICT
     if not parts:
         return b""
     
@@ -34,6 +39,19 @@ def handle_command(parts):
     elif command == "ECHO" and len(parts) > 1:
         arg = parts[1]
         return f"${len(arg)}\r\n{arg}\r\n".encode()
+    elif command == "SET" and len(parts) >= 3:
+        key, value = parts[1], parts[2]
+        with lock:
+            GLOBAL_DICT[key] = value
+        return b"+OK\r\n"
+    elif command == "GET" and len(parts) > 1:
+        key = parts[1]
+        with lock:
+            value = GLOBAL_DICT.get(key)
+        if value is None:
+            return b"$-1\r\n"
+        else:
+            return f"${len(value)}\r\n{value}\r\n".encode()
     else:
         return b"-ERR unknown command\r\n"
 
