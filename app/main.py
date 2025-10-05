@@ -1,4 +1,5 @@
 import socket  # noqa: F401
+import threading
 
 def handle_connection(connection):
     try:
@@ -24,7 +25,11 @@ def main():
     try:
         while True:
             connection, _ = server_socket.accept() # wait for client
-            handle_connection(connection)
+
+            # implementing threading to handle multiple clients simultaneously
+            thread = threading.Thread(target=handle_connection, args=(connection))
+            thread.daemon = True
+            thread.start()
     except KeyboardInterrupt:
         print("Shutting down server.")
     finally:
