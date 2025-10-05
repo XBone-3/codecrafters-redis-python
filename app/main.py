@@ -76,7 +76,7 @@ def handle_command(parts):
         key = parts[1]
         with lock:
             clean_expired_keys()
-            value = GLOBAL_STORE.get(key)
+            value = GLOBAL_STORE.get(key, None)
         if value is None:
             return b"$-1\r\n"
         else:
