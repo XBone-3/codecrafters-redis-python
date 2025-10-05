@@ -52,12 +52,19 @@ def handle_command(parts):
     elif command == "SET" and len(parts) >= 3:
         key, value = parts[1], parts[2]
         expiry_time = None
-        if len(parts) == 5 and parts[3].upper() == "PX":
-            try:
-                time_in_ms = int(parts[4])
-                expiry_time = time.time() * 1000 + time_in_ms  # current time in ms + expiry
-            except ValueError:
-                pass
+        if len(parts) == 5:
+            if parts[3].upper() == "PX":
+                try:
+                    time_in_ms = int(parts[4])
+                    expiry_time = time.time() * 1000 + time_in_ms  # current time in ms + expiry
+                except ValueError:
+                    pass
+            elif parts[3].upper() == "EX":
+                try:
+                    time_in_s = int(parts[4])
+                    expiry_time = time.time() * 1000 + (time_in_s * 1000)  # current time in ms + expiry
+                except ValueError:
+                    pass
         with lock:
             GLOBAL_STORE[key] = value
             if expiry_time:
